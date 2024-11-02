@@ -5,7 +5,7 @@ A modern, full-stack todo application built with Next.js, Hono.js, Drizzle ORM, 
 ## Tech Stack
 
 ### Frontend
-- **Next.js 14** - React framework with App Router
+- **Next.js 15** - React framework with App Router
 - **Tailwind CSS** - Utility-first CSS framework
 - **shadcn/ui** - Re-usable components built with Radix UI and Tailwind
 - **React Hook Form** - Performant, flexible forms with validation
@@ -27,7 +27,7 @@ Make sure you have the following installed:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/azad241/todo-next-hono
+git clone https://github.com/azad241/todo-app-next-hono
 ```
 
 2. Install dependencies:
