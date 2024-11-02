@@ -1,6 +1,6 @@
 # Full Stack Todo Application
 
-A modern, full-stack todo application built with Next.js, Hono.js, Drizzle ORM, and other cutting-edge technologies. This application demonstrates best practices in full-stack development, including type safety, API validation, and modern UI components.
+A modern, full-stack todo application built with Next.js, Hono.js, Drizzle ORM, and other technologies. This application demonstrates best practices in full-stack development, including type safety, API validation, and modern UI components.
 
 ## Tech Stack
 
@@ -32,7 +32,7 @@ git clone https://github.com/azad241/todo-app-next-hono
 
 2. Install dependencies:
 ```bash
-bun install --legacy-peer-deps
+npm install --legacy-peer-deps
 ```
 
 3. Set up environment variables:
