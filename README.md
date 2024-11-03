@@ -43,12 +43,12 @@ DB_FILE_NAME=file:local.db
 
 4. Generate database schema:
 ```bash
-npx drizzle-kit generate:sqlite
+npx drizzle-kit generate
 ```
 
 5. Apply database migrations:
 ```bash
-npx drizzle-kit push:sqlite
+npx drizzle-kit push
 ```
 
 6. Start the development server:
