@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Trash2, Edit2, Save, X } from 'lucide-react'
 
+import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -29,6 +30,7 @@ export default function TodoComponent() {
   const [editingTodo, setEditingTodo] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const { toast } = useToast()
+  const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
     fetchTodos()
@@ -38,8 +40,9 @@ export default function TodoComponent() {
     const response = await fetch('/api/todos')
     const data = await response.json()
     setTodos(data)
+    setLoading(false);
   }
-  
+
   const handleApiError = (error: ApiError) => {
     if (error.errors && error.errors.length > 0) {
       const errorMessages = error.errors.map(err => err.message).join(', ')
@@ -67,7 +70,6 @@ export default function TodoComponent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTodo, status: 'todo' }),
       })
-
       if (!response.ok) {
         const errorData: ApiError = await response.json()
         handleApiError(errorData)
@@ -104,7 +106,7 @@ export default function TodoComponent() {
         return
       }
 
-      setTodos(prevTodos => prevTodos.map(todo => 
+      setTodos(prevTodos => prevTodos.map(todo =>
         todo.id === id ? { ...todo, ...updates } : todo
       ))
       toast({
@@ -195,96 +197,130 @@ export default function TodoComponent() {
 
   const TodoList = ({ status }: { status: Todo['status'] }) => (
     <>
-    <ul className="space-y-2">
-      {todos.filter(todo => todo.status === status).map((todo) => (
-        <li key={todo.id} className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 p-2 rounded">
-          {/* title part */}
-          {editingTodo === todo.id ? (
-            <Input
-              type="text"
-              value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              className="flex-grow"
-            />
-          ) : (
-            <span className="flex-grow dark:text-gray-200">{todo.title}</span>
-          )}
-          {/* select part */}
-          <Select
-            defaultValue={todo.status}
-            onValueChange={(value) => updateTodo(todo.id, { status: value as Todo['status'] })}
-          >
-            <SelectTrigger className={`w-[130px] ${getStatusColor(todo.status)}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todo">Todo</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="done">Done</SelectItem>
-            </SelectContent>
-          </Select>
+      {loading ? (<TodoListLoading />) : (
+        <ul className="space-y-2">
+          {todos.filter(todo => todo.status === status).map((todo) => (
+            <li key={todo.id} className="flex flex-col sm:flex-row items-center gap-2 space-x-2 bg-gray-100 dark:bg-gray-800 p-2 rounded">
+              {/* title part */}
+              {editingTodo === todo.id ? (
+                <Input
+                  type="text"
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  autoFocus
+                  className="flex-grow"
+                />
+              ) : (
+                <span className="flex-grow dark:text-gray-200 w-full sm:w-8/12">{todo.title}</span>
+              )}
+             <div className=' flex flex-row sm:flex-auto sm:w-4/12'>
+               {/* select part */}
+               <div className='w-1/2 px-1'>
+                <Select
+                  defaultValue={todo.status}
+                  onValueChange={(value) => updateTodo(todo.id, { status: value as Todo['status'] })}
+                >
+                  <SelectTrigger className={`${getStatusColor(todo.status)}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todo">Todo</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* edit part */}
-          {editingTodo === todo.id ? (
-            <>
-              <Button size="icon" onClick={() => saveEdit(todo.id)}>
-                <Save className="h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="outline" onClick={() => setEditingTodo(null)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button size="icon" variant="outline" onClick={() => startEditing(todo)}>
-                <Edit2 className="h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="destructive" onClick={() => deleteTodo(todo.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-        </li>
-      ))}
-    </ul>
+              {/* edit part */}
+              {editingTodo === todo.id ? (
+                <>
+                  <div className='w-1/2 flex flex-row gap-1'>
+                    <Button size="icon" onClick={() => saveEdit(todo.id)}>
+                      <Save className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="outline" onClick={() => setEditingTodo(null)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className='w-1/2 flex flex-row gap-1'>
+                    <Button size="icon" variant="outline" onClick={() => startEditing(todo)}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="destructive" onClick={() => deleteTodo(todo.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
+              )}
+             </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
     </>
   )
 
   return (
     <>
-     <form onSubmit={addTodo} className="flex space-x-2 mb-4">
-          <Input
-            type="text"
-            value={newTodo}
-            onChange={(e) => setNewTodo(e.target.value)}
-            placeholder="Add a new todo"
-            className="flex-grow dark:bg-gray-700 dark:text-gray-100"
-          />
-          <Button type="submit">Add</Button>
-        </form>
+      <form onSubmit={addTodo} className="flex space-x-2 mb-4">
+        <Input
+          type="text"
+          value={newTodo}
+          onChange={(e) => setNewTodo(e.target.value)}
+          placeholder="Add a new todo"
+          className="flex-grow dark:bg-gray-700 dark:text-gray-100"
+        />
+        <Button type="submit">Add</Button>
+      </form>
 
-        <Tabs defaultValue="todo" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="todo">Todo</TabsTrigger>
-            <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-            <TabsTrigger value="done">Done</TabsTrigger>
-          </TabsList>
-          <TabsContent value="todo">
-            <TodoList status="todo" />
-          </TabsContent>
-          <TabsContent value="in-progress">
-            <TodoList status="in-progress" />
-          </TabsContent>
-          <TabsContent value="done">
-            <TodoList status="done" />
-          </TabsContent>
-        </Tabs>
+      <Tabs defaultValue="todo" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="todo">Todo</TabsTrigger>
+          <TabsTrigger value="in-progress">In Progress</TabsTrigger>
+          <TabsTrigger value="done">Done</TabsTrigger>
+        </TabsList>
+        <TabsContent value="todo">
+          <TodoList status="todo" />
+        </TabsContent>
+        <TabsContent value="in-progress">
+          <TodoList status="in-progress" />
+        </TabsContent>
+        <TabsContent value="done">
+          <TodoList status="done" />
+        </TabsContent>
+      </Tabs>
 
-        {todos.length > 0 && (
-          <Button variant="destructive" className="mt-4" onClick={deleteAllTodos}>
-            Delete All Todos
-          </Button>
-        )}
+      {todos.length > 0 && (
+        <Button variant="destructive" className="mt-4" onClick={deleteAllTodos}>
+          Delete All Todos
+        </Button>
+      )}
     </>
+  )
+}
+
+function TodoListLoading() {
+  return (
+    <div className="space-y-4">
+      <ul className="space-y-2">
+        {[1, 2, 3, 4, 5].map((index) => (
+          <li key={index} className="flex items-center gap-2 space-x-2 bg-gray-100 dark:bg-gray-800 p-2 rounded animate-pulse">
+            <Skeleton className="h-4 w-8/12" />
+            <div className="w-2/12 px-1">
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div className="w-2/12 flex flex-row gap-1">
+              <Skeleton className="h-9 w-9" />
+              <Skeleton className="h-9 w-9" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
