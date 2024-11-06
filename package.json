@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "concurrently \"next dev --turbopack\" \"tsx watch Hono/route.ts\" ",
     "build": "next build",
-    "start": "next start",
+    "start": "concurrently \"next start\" \"tsx watch Hono/route.ts\" ",
     "lint": "next lint"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.5",
     "@hono/zod-validator": "^0.4.1",
     "@libsql/client": "^0.14.0",
     "@radix-ui/react-checkbox": "^1.1.2",
@@ -19,6 +20,7 @@
     "@radix-ui/react-toast": "^1.2.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "concurrently": "^9.1.0",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.36.0",
     "hono": "^4.6.8",

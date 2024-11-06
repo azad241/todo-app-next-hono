@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Trash2, Edit2, Save, X } from 'lucide-react'
+import { ZodInfer } from 'zod'
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
@@ -9,12 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from '@/hooks/use-toast'
+import { api_client as api } from '@/lib/client'
+import { TodoSchema, UpdateTodoSchema } from '@/Hono/db/validator'
 
-interface Todo {
-  id: string
-  title: string
-  status: 'todo' | 'in-progress' | 'done'
-}
+type Todo = ZodInfer<typeof TodoSchema>
+type UpdateTodo = ZodInfer<typeof UpdateTodoSchema>
 
 interface ApiError {
   message: string
@@ -37,12 +37,17 @@ export default function TodoComponent() {
   }, [])
 
   const fetchTodos = async () => {
-    const response = await fetch('/api/todos')
-    const data = await response.json()
-    setTodos(data)
-    setLoading(false);
+    try {
+      const response = await (await api.todos.$get()).json()
+      const data = response;
+      setTodos(data)
+      setLoading(false)
+    } catch (error) {
+      handleApiError(error as ApiError)
+    }
   }
 
+ 
   const handleApiError = (error: ApiError) => {
     if (error.errors && error.errors.length > 0) {
       const errorMessages = error.errors.map(err => err.message).join(', ')
@@ -63,19 +68,8 @@ export default function TodoComponent() {
   const addTodo = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTodo.trim()) return
-
     try {
-      const response = await fetch('/api/todos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTodo, status: 'todo' }),
-      })
-      if (!response.ok) {
-        const errorData: ApiError = await response.json()
-        handleApiError(errorData)
-        return
-      }
-
+      await api.todos.$post({ form: { title: newTodo, status: 'todo' } })
       setNewTodo('')
       fetchTodos()
       toast({
@@ -83,29 +77,17 @@ export default function TodoComponent() {
         description: 'Todo Added',
         variant: "default"
       })
-    } catch {
-      toast({
-        title: "Error",
-        description: 'An error occurred while adding the todo',
-        variant: "destructive",
-      })
+    } catch (error) {
+      handleApiError(error as ApiError)
     }
   }
 
-  const updateTodo = async (id: string, updates: Partial<Todo>) => {
+  const updateTodo = async (id: string, updates: UpdateTodo) => {
     try {
-      const response = await fetch(`/api/todos/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
+      await (api.todos[':id'].$put as UpdateTodo)({
+        param: { id: `${id}` },
+        form: updates
       })
-
-      if (!response.ok) {
-        const errorData: ApiError = await response.json()
-        handleApiError(errorData)
-        return
-      }
-
       setTodos(prevTodos => prevTodos.map(todo =>
         todo.id === id ? { ...todo, ...updates } : todo
       ))
@@ -125,14 +107,7 @@ export default function TodoComponent() {
 
   const deleteTodo = async (id: string) => {
     try {
-      const response = await fetch(`/api/todos/${id}`, { method: 'DELETE' })
-
-      if (!response.ok) {
-        const errorData: ApiError = await response.json()
-        handleApiError(errorData)
-        return
-      }
-
+      await api.todos[':id'].$delete({ param: { id: `${id}` } })
       setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id))
       toast({
         title: "Success",
@@ -150,27 +125,15 @@ export default function TodoComponent() {
 
   const deleteAllTodos = async () => {
     try {
-      const response = await fetch('/api/todos', { method: 'DELETE' })
-
-      if (!response.ok) {
-        const errorData: ApiError = await response.json()
-        handleApiError(errorData)
-        return
-      }
-
+      await api.todos.$delete()
       setTodos([])
       toast({
         title: "Warning!",
-        description: 'All todo has been deleted!',
+        description: 'All todos have been deleted!',
         variant: "destructive",
       })
-
-    } catch {
-      toast({
-        title: "Error",
-        description: 'An error occurred while deleting all todos',
-        variant: "destructive",
-      })
+    } catch (error) {
+      handleApiError(error as ApiError)
     }
   }
 
@@ -214,54 +177,53 @@ export default function TodoComponent() {
               ) : (
                 <span className="flex-grow dark:text-gray-200 w-full sm:w-8/12">{todo.title}</span>
               )}
-             <div className=' flex flex-row sm:flex-auto sm:w-4/12'>
-               {/* select part */}
-               <div className='w-1/2 px-1'>
-                <Select
-                  defaultValue={todo.status}
-                  onValueChange={(value) => updateTodo(todo.id, { status: value as Todo['status'] })}
-                >
-                  <SelectTrigger className={`${getStatusColor(todo.status)}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todo">Todo</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div className='flex flex-row sm:flex-auto sm:w-4/12'>
+                {/* select part */}
+                <div className='w-1/2 px-1'>
+                  <Select
+                    defaultValue={todo.status}
+                    onValueChange={(value) => updateTodo(todo.id, { status: value as Todo['status'] })}
+                  >
+                    <SelectTrigger className={`${getStatusColor(todo.status)}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todo">Todo</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="done">Done</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {/* edit part */}
-              {editingTodo === todo.id ? (
-                <>
-                  <div className='w-1/2 flex flex-row gap-1'>
-                    <Button size="icon" onClick={() => saveEdit(todo.id)}>
-                      <Save className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="outline" onClick={() => setEditingTodo(null)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className='w-1/2 flex flex-row gap-1'>
-                    <Button size="icon" variant="outline" onClick={() => startEditing(todo)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="destructive" onClick={() => deleteTodo(todo.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </>
-              )}
-             </div>
+                {/* edit part */}
+                {editingTodo === todo.id ? (
+                  <>
+                    <div className='w-1/2 flex flex-row gap-1'>
+                      <Button size="icon" onClick={() => saveEdit(todo.id)}>
+                        <Save className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="outline" onClick={() => setEditingTodo(null)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className='w-1/2 flex flex-row gap-1'>
+                      <Button size="icon" variant="outline" onClick={() => startEditing(todo)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="destructive" onClick={() => deleteTodo(todo.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
             </li>
           ))}
         </ul>
       )}
-
     </>
   )
 

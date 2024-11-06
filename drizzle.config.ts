@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { defineConfig } from 'drizzle-kit';
 export default defineConfig({
-    out: './app/api/drizzle',
-    schema: './app/api/db/schema.ts',
+    out: './hono/drizzle',
+    schema: './hono/db/schema.ts',
     dialect: 'sqlite',
     dbCredentials: {
         url: process.env.DB_FILE_NAME!,
