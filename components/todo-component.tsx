@@ -3,27 +3,45 @@
 import { useState, useEffect } from 'react'
 import { Trash2, Edit2, Save, X } from 'lucide-react'
 import { z } from 'zod'
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from '@/hooks/use-toast'
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { api_client as api } from '@/lib/client'
 import { TodoSchema, UpdateTodoSchema } from '@/server/db/validator'
+
+const todoFormSchema = z.object({
+  title: z.string().min(1, {
+    message: "Todo must be at least 1 character.",
+  }).max(300, {
+    message: "Todo must not be longer than 300 characters.",
+  }),
+})
+
 
 type Todo = z.infer<typeof TodoSchema>
 type UpdateTodo = z.infer<typeof UpdateTodoSchema>
 
-
 export default function TodoComponent() {
   const [todos, setTodos] = useState<Todo[]>([])
-  const [newTodo, setNewTodo] = useState('')
   const [editingTodo, setEditingTodo] = useState<string | null>(null)
-  const [editText, setEditText] = useState('')
-  const { toast } = useToast()
   const [loading, setLoading] = useState<boolean>(true)
+
+  const form = useForm<z.infer<typeof todoFormSchema>>({
+    resolver: zodResolver(todoFormSchema),
+    defaultValues: {
+      title: "",
+    },
+  })
+
+  const editForm = useForm<z.infer<typeof todoFormSchema>>({
+    resolver: zodResolver(todoFormSchema),
+  })
 
   useEffect(() => {
     fetchTodos()
@@ -31,46 +49,27 @@ export default function TodoComponent() {
 
   const fetchTodos = async () => {
     try {
-      const response = await (await api.todos.$get()).json();
-    const data = response.map((todo: { id: string; title: string; status: string; createdAt: string; updatedAt: string }) => ({
-      ...todo,
-      status: todo.status as Todo['status'],
-    }));
+      const response = await (await api.todos.$get()).json()
+      const data = response.map((todo: { id: string; title: string; status: string; createdAt: string; updatedAt: string }) => ({
+        ...todo,
+        status: todo.status as Todo['status'],
+      }))
       setTodos(data)
       setLoading(false)
     } catch (error) {
-      toast({
-        title: "Validation Error",
-        description: `Error, ${error}`,
-        variant: "destructive",
-      })
+      console.error('Error fetching todos:', error)
     }
   }
 
-
-
-  const addTodo = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newTodo.trim()) return
+  const addTodo = async (data: z.infer<typeof todoFormSchema>) => {
     try {
-      const data = await (await api.todos.$post({ form: { title: newTodo, status: 'todo' } })).json()
-      setNewTodo('')
+      await api.todos.$post({ form: { title: data.title, status: 'todo' } })
+      form.reset()
       fetchTodos()
-      toast({
-        title: "Success",
-        description: `Todo Added`,
-        variant: "default"
-      })
-      console.log(data)
     } catch (error) {
-      toast({
-        title: "Validation Error",
-        description: `Error, ${error}`,
-        variant: "destructive",
-      })
+      console.error('Error adding todo:', error)
     }
   }
-
   const updateTodo = async (id: string, updates: UpdateTodo) => {
     try {
       await api.todos[':id'].$put({
@@ -80,17 +79,9 @@ export default function TodoComponent() {
       setTodos(prevTodos => prevTodos.map(todo =>
         todo.id === id ? { ...todo, ...updates } : todo
       ))
-      toast({
-        title: "Success",
-        description: 'Todo has been updated',
-        variant: "default",
-      })
-    } catch {
-      toast({
-        title: "Error",
-        description: 'An error occurred while updating the todo',
-        variant: "destructive",
-      })
+      setEditingTodo(null)
+    } catch (error) {
+      console.error('Error updating todo:', error)
     }
   }
 
@@ -98,17 +89,8 @@ export default function TodoComponent() {
     try {
       await api.todos[':id'].$delete({ param: { id: `${id}` } })
       setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id))
-      toast({
-        title: "Success",
-        description: 'Todo has been deleted',
-        variant: "destructive",
-      })
-    } catch {
-      toast({
-        title: "Error",
-        description: 'An error occurred while deleting the todo',
-        variant: "destructive",
-      })
+    } catch (error) {
+      console.error('Error deleting todo:', error)
     }
   }
 
@@ -116,28 +98,18 @@ export default function TodoComponent() {
     try {
       await api.todos.$delete()
       setTodos([])
-      toast({
-        title: "Warning!",
-        description: 'All todos have been deleted!',
-        variant: "destructive",
-      })
     } catch (error) {
-      toast({
-        title: "Validation Error",
-        description: `Error, ${error}`,
-        variant: "destructive",
-      })
+      console.error('Error deleting all todos:', error)
     }
   }
 
   const startEditing = (todo: Todo) => {
     setEditingTodo(todo.id)
-    setEditText(todo.title)
+    editForm.reset({ title: todo.title })
   }
 
-  const saveEdit = async (id: string) => {
-    await updateTodo(id, { title: editText })
-    setEditingTodo(null)
+  const saveEdit = async (id: string, data: z.infer<typeof todoFormSchema>) => {
+    await updateTodo(id, { title: data.title })
   }
 
   const getStatusColor = (status: Todo['status']) => {
@@ -157,21 +129,27 @@ export default function TodoComponent() {
         <ul className="space-y-2">
           {todos.filter(todo => todo.status === status).map((todo) => (
             <li key={todo.id} className="flex flex-col sm:flex-row items-center gap-2 space-x-2 bg-gray-100 dark:bg-gray-800 p-2 rounded">
-              {/* title part */}
               {editingTodo === todo.id ? (
-                <Input
-                  type="text"
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  autoFocus
-                  className="flex-grow"
-                />
+                <Form {...editForm}>
+                  <form onSubmit={editForm.handleSubmit((data) => saveEdit(todo.id, data))} className="flex-grow">
+                    <FormField
+                      control={editForm.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input {...field} autoFocus />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </form>
+                </Form>
               ) : (
                 <span className="flex-grow dark:text-gray-200 w-full sm:w-8/12">{todo.title}</span>
               )}
               <div className='flex flex-row sm:flex-auto sm:w-4/12'>
-                {/* select part */}
                 <div className='w-1/2 px-1'>
                   <Select
                     defaultValue={todo.status}
@@ -188,29 +166,24 @@ export default function TodoComponent() {
                   </Select>
                 </div>
 
-                {/* edit part */}
                 {editingTodo === todo.id ? (
-                  <>
-                    <div className='w-1/2 flex flex-row gap-1'>
-                      <Button size="icon" onClick={() => saveEdit(todo.id)}>
-                        <Save className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="outline" onClick={() => setEditingTodo(null)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </>
+                  <div className='w-1/2 flex flex-row gap-1'>
+                    <Button size="icon" type="submit" onClick={editForm.handleSubmit((data) => saveEdit(todo.id, data))}>
+                      <Save className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="outline" onClick={() => setEditingTodo(null)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ) : (
-                  <>
-                    <div className='w-1/2 flex flex-row gap-1'>
-                      <Button size="icon" variant="outline" onClick={() => startEditing(todo)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="destructive" onClick={() => deleteTodo(todo.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </>
+                  <div className='w-1/2 flex flex-row gap-1'>
+                    <Button size="icon" variant="outline" onClick={() => startEditing(todo)}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="destructive" onClick={() => deleteTodo(todo.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
             </li>
@@ -222,16 +195,27 @@ export default function TodoComponent() {
 
   return (
     <>
-      <form onSubmit={addTodo} className="flex space-x-2 mb-4">
-        <Input
-          type="text"
-          value={newTodo}
-          onChange={(e) => setNewTodo(e.target.value)}
-          placeholder="Add a new todo"
-          className="flex-grow dark:bg-gray-700 dark:text-gray-100"
-        />
-        <Button type="submit">Add</Button>
-      </form>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(addTodo)} className="flex space-x-2 mb-4">
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem className="flex-grow">
+                <FormControl>
+                  <Input 
+                    placeholder="Add a new todo" 
+                    className="dark:bg-gray-700 dark:text-gray-100"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit">Add</Button>
+        </form>
+      </Form>
 
       <Tabs defaultValue="todo" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
