@@ -11,8 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from '@/hooks/use-toast'
 import { api_client as api } from '@/lib/client'
-import { TodoSchema, UpdateTodoSchema } from '@/hono/db/validator'
-import { error } from 'console'
+import { TodoSchema, UpdateTodoSchema } from '@/server/db/validator'
 
 type Todo = z.infer<typeof TodoSchema>
 type UpdateTodo = z.infer<typeof UpdateTodoSchema>
@@ -59,7 +58,7 @@ export default function TodoComponent() {
       fetchTodos()
       toast({
         title: "Success",
-        description: `Todo Added, check: ${data}`,
+        description: `Todo Added`,
         variant: "default"
       })
       console.log(data)
