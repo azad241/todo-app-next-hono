@@ -12,17 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from '@/hooks/use-toast'
 import { api_client as api } from '@/lib/client'
 import { TodoSchema, UpdateTodoSchema } from '@/hono/db/validator'
+import { error } from 'console'
 
 type Todo = z.infer<typeof TodoSchema>
 type UpdateTodo = z.infer<typeof UpdateTodoSchema>
 
-interface ApiError {
-  message: string
-  errors?: Array<{
-    message: string
-    path: string[]
-  }>
-}
 
 export default function TodoComponent() {
   const [todos, setTodos] = useState<Todo[]>([])
@@ -46,42 +40,35 @@ export default function TodoComponent() {
       setTodos(data)
       setLoading(false)
     } catch (error) {
-      handleApiError(error as ApiError)
+      toast({
+        title: "Validation Error",
+        description: `Error, ${error}`,
+        variant: "destructive",
+      })
     }
   }
 
- 
-  const handleApiError = (error: ApiError) => {
-    if (error.errors && error.errors.length > 0) {
-      const errorMessages = error.errors.map(err => err.message).join(', ')
-      toast({
-        title: "Validation Error",
-        description: errorMessages,
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Error",
-        description: error.message || 'An unexpected error occurred',
-        variant: "destructive",
-      })
-    }
-  }
+
 
   const addTodo = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTodo.trim()) return
     try {
-      await api.todos.$post({ form: { title: newTodo, status: 'todo' } })
+      const data = await (await api.todos.$post({ form: { title: newTodo, status: 'todo' } })).json()
       setNewTodo('')
       fetchTodos()
       toast({
         title: "Success",
-        description: 'Todo Added',
+        description: `Todo Added, check: ${data}`,
         variant: "default"
       })
+      console.log(data)
     } catch (error) {
-      handleApiError(error as ApiError)
+      toast({
+        title: "Validation Error",
+        description: `Error, ${error}`,
+        variant: "destructive",
+      })
     }
   }
 
@@ -136,7 +123,11 @@ export default function TodoComponent() {
         variant: "destructive",
       })
     } catch (error) {
-      handleApiError(error as ApiError)
+      toast({
+        title: "Validation Error",
+        description: `Error, ${error}`,
+        variant: "destructive",
+      })
     }
   }
 
