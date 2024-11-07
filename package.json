@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev --turbopack\" \"tsx watch Hono/route.ts\" ",
+    "dev": "concurrently \"next dev --turbopack\" \"tsx watch hono/route.ts\" ",
     "build": "next build",
-    "start": "concurrently \"next start\" \"tsx watch Hono/route.ts\" ",
+    "start": "concurrently \"next start\" \"tsx watch hono/route.ts\" ",
     "lint": "next lint"
   },
   "dependencies": {
