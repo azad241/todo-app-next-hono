@@ -9,4 +9,4 @@ export const TodoSchema = z.object({
 });
 
 export const CreateTodoSchema = TodoSchema.omit({ id: true, createdAt: true, updatedAt: true });
-export const UpdateTodoSchema = TodoSchema.partial().omit({ createdAt: true, updatedAt: true });
+export const UpdateTodoSchema = TodoSchema.partial().omit({ id: true, createdAt: true, updatedAt: true });

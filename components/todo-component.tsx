@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Trash2, Edit2, Save, X } from 'lucide-react'
-import { ZodInfer } from 'zod'
+import { z } from 'zod'
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
@@ -11,10 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from '@/hooks/use-toast'
 import { api_client as api } from '@/lib/client'
-import { TodoSchema, UpdateTodoSchema } from '@/Hono/db/validator'
+import { TodoSchema, UpdateTodoSchema } from '@/hono/db/validator'
 
-type Todo = ZodInfer<typeof TodoSchema>
-type UpdateTodo = ZodInfer<typeof UpdateTodoSchema>
+type Todo = z.infer<typeof TodoSchema>
+type UpdateTodo = z.infer<typeof UpdateTodoSchema>
 
 interface ApiError {
   message: string
@@ -38,8 +38,11 @@ export default function TodoComponent() {
 
   const fetchTodos = async () => {
     try {
-      const response = await (await api.todos.$get()).json()
-      const data = response;
+      const response = await (await api.todos.$get()).json();
+    const data = response.map((todo: { id: string; title: string; status: string; createdAt: string; updatedAt: string }) => ({
+      ...todo,
+      status: todo.status as Todo['status'],
+    }));
       setTodos(data)
       setLoading(false)
     } catch (error) {
@@ -84,7 +87,7 @@ export default function TodoComponent() {
 
   const updateTodo = async (id: string, updates: UpdateTodo) => {
     try {
-      await (api.todos[':id'].$put as UpdateTodo)({
+      await api.todos[':id'].$put({
         param: { id: `${id}` },
         form: updates
       })
